@@ -24,7 +24,6 @@ def lambda_handler(event, context):
     '''
     try:
         inputText = event['commonMistakes']
-        print(inputText)
         processedText = run_all(inputText)
 
         return {
@@ -75,6 +74,7 @@ def check_equality(response, answer, params, eval_response) -> dict:
     except Exception as e:
         return (sympify('a'), sympify('b'))
     return (res, ans)
+
 
 ## creating node
 
@@ -414,7 +414,7 @@ def form_check(str1, str2):
             return True, f"The student's response has missing term {', '.join(in_2_not_1)}"
     elif len(set(diff_char)) == 2:
         if len(in_1_not_2) == 1:
-            return True, f"The student's response has {in_1_not_2[0]} instead of {in_2_not_1[0]}"    
+            return True, f"The student's response has term {in_1_not_2[0]} instead of term {in_2_not_1[0]}"    
         elif re.search(r'[A-Za-z0-9]',('').join(diff_char)) and re.search(r'[\*\/]',(', ').join(diff_char)):
             if in_1_not_2 == diff_char:
                 return True, f"The student's response has excess term {', '.join(diff_char)}"    
@@ -498,6 +498,9 @@ def generate_mult_msg(to_mod):
        
     for i in range(len(uniq_msg)):
             msg += f'({i+1}) {uniq_msg[i]} '
+
+    
+    return msg
 
 
 ## to clean up the raw edit dist operations provided by zss
@@ -625,9 +628,7 @@ def run_all(commonMistakes):
         raw_A = i["submission"].replace('"','')
         raw_B = i["answer"].replace('"','')
         # [node.print_prop() for node in nodes]
-
         to_mod, A, B = parse_tree(expr_a, expr_b)
-        print(to_mod)
         # Compare the raw string to catch some scenarios
         form_check_bool_raw, form_check_msg_raw = raw_form_check(str(raw_A), str(raw_B))
 
