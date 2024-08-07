@@ -627,7 +627,7 @@ def run_all(commonMistakes):
         # [node.print_prop() for node in nodes]
 
         to_mod, A, B = parse_tree(expr_a, expr_b)
-
+        print(to_mod)
         # Compare the raw string to catch some scenarios
         form_check_bool_raw, form_check_msg_raw = raw_form_check(str(raw_A), str(raw_B))
 
