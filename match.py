@@ -471,21 +471,21 @@ def recursive_extract_node(node, string):
 
 def generate_message(ops):
     if ops[0] == 'I':
-        if ops[2].type in ['numeric','variable']:
+        if ops[2].type in ['numeric','variable','function']:
             return f"The student's response is missing term {re.sub(r'\|.*','',ops[2].value)}."
         else:
             return f"The student's response is missing term {recursive_extract_node(ops[2],'')[1:-1]}. "
     elif ops[0] == 'R':
-         if ops[1].type in ['numeric','variable']:
+         if ops[1].type in ['numeric','variable','function']:
             return f"The student's response has excess term {re.sub(r'\|.*','',ops[1].value)}. "
          else:
             return f"The student's response has excess term {recursive_extract_node(ops[1],'')[1:-1]}. "
     else:
-        if ops[2].type in ['numeric','variable']:
+        if ops[2].type in ['numeric','variable','function']:
             ins_term_str =  f'{re.sub(r'\|.*','',ops[2].value)}'
         else:
             ins_term_str = recursive_extract_node(ops[2],'')[1:-1]
-        if ops[1].type in ['numeric','variable']:
+        if ops[1].type in ['numeric','variable','function']:
             rem_term_str = f'{re.sub(r'\|.*','',ops[1].value)}'
         else:
             rem_term_str = recursive_extract_node(ops[1],'')[1:-1]
@@ -499,8 +499,6 @@ def generate_mult_msg(to_mod):
     for i in range(len(uniq_msg)):
             msg += f'({i+1}) {uniq_msg[i]} '
 
-    
-    return msg
 
 ## to clean up the raw edit dist operations provided by zss
 def parse_tree(expr_a, expr_b):
@@ -646,7 +644,6 @@ def run_all(commonMistakes):
             elif to_mod[0][0] == 'U' and to_mod[0][4] == 1 and to_mod[0][1].type == to_mod[0][2].type and to_mod[0][1].type == 'numeric':
                 atol = params.get('atol',0)*2
                 rtol = max(params.get("rtol", 0.05)*2,0.1)
-                is_correct = None
                 real_diff = None
                 response = float(sp.sympify(to_mod[0][1].value).evalf())
                 answer = float(sp.sympify(to_mod[0][2].value).evalf())

@@ -1,0 +1,36 @@
+{
+  "commonMistakes": [
+    {
+      "submission": "4",
+      "latexSubmission": "5",
+      "simplifiedSubmission": "5",
+      "frequency": 6,
+      "feedback": "Incorrect",
+      "mark": 0,
+      "color": "",
+      "responseAreaId": "655f95f1-c606-41a0-8905-a8baaa4a8a9f",
+      "universalResponseAreaId": "da886822-618a-4c32-a332-18b0783e33dc",
+      "params": {
+        "strict_syntax": true,
+        "symbols": {}
+      },
+      "answer": "-4"
+    },
+    {
+      "submission": "3",
+      "latexSubmission": "3",
+      "simplifiedSubmission": "3",
+      "frequency": 5,
+      "feedback": "Incorrect",
+      "mark": 0,
+      "color": "",
+      "responseAreaId": "655f95f1-c606-41a0-8905-a8baaa4a8a9f",
+      "universalResponseAreaId": "da886822-618a-4c32-a332-18b0783e33dc",
+      "params": {
+        "strict_syntax": true,
+        "symbols": {}
+      },
+      "answer": "4"
+    }
+  ]
+}
