@@ -20,11 +20,11 @@ from evaluationFunction.expression_utilities import (
 
 def lambda_handler(event, context):
     '''Provide an event that contains the following keys:
-
       - message: contains the text 
     '''
     try:
-        inputText = json.loads(event['commonMistakes'])
+        inputText = event['commonMistakes']
+        print(inputText)
         processedText = run_all(inputText)
 
         return {
