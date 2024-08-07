@@ -16,7 +16,7 @@ from evaluationFunction.expression_utilities import (
     parse_expression,
     create_sympy_parsing_params,
     convert_absolute_notation
-)
+) 
 
 def lambda_handler(event, context):
     '''Provide an event that contains the following keys:
