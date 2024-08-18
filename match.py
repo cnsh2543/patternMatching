@@ -1,3 +1,5 @@
+## gen msg, parse tree are modified, raw form check
+
 import re
 import os
 import json
@@ -16,7 +18,8 @@ from evaluationFunction.expression_utilities import (
     parse_expression,
     create_sympy_parsing_params,
     convert_absolute_notation
-) 
+)
+
 
 def lambda_handler(event, context):
     '''Provide an event that contains the following keys:
@@ -74,7 +77,6 @@ def check_equality(response, answer, params, eval_response) -> dict:
     except Exception as e:
         return (sympify('a'), sympify('b'))
     return (res, ans)
-
 
 ## creating node
 
@@ -299,7 +301,6 @@ def extract_recursive(node, children_list):
             extract_recursive(i, children_list)
 
 
-
 ## this is to compare the raw string, using string edit distance. 
 ## can help to capture some initial mistakes
 def raw_form_check(str1, str2):
@@ -414,7 +415,7 @@ def form_check(str1, str2):
             return True, f"The student's response has missing term {', '.join(in_2_not_1)}"
     elif len(set(diff_char)) == 2:
         if len(in_1_not_2) == 1:
-            return True, f"The student's response has term {in_1_not_2[0]} instead of term {in_2_not_1[0]}"    
+            return True, f"The student's response has {in_1_not_2[0]} instead of {in_2_not_1[0]}"    
         elif re.search(r'[A-Za-z0-9]',('').join(diff_char)) and re.search(r'[\*\/]',(', ').join(diff_char)):
             if in_1_not_2 == diff_char:
                 return True, f"The student's response has excess term {', '.join(diff_char)}"    
@@ -429,7 +430,6 @@ def form_check(str1, str2):
 
    
     return False, 'NA'
-
 
 ## printing utilities
 
@@ -501,7 +501,6 @@ def generate_mult_msg(to_mod):
 
     
     return msg
-
 
 ## to clean up the raw edit dist operations provided by zss
 def parse_tree(expr_a, expr_b):
@@ -631,9 +630,6 @@ def run_all(commonMistakes):
         to_mod, A, B = parse_tree(expr_a, expr_b)
         # Compare the raw string to catch some scenarios
         form_check_bool_raw, form_check_msg_raw = raw_form_check(str(raw_A), str(raw_B))
-
-        ## Compare the sympy parsed string to catch some scenarios
-        form_check_bool, form_check_msg = form_check(expr_a, expr_b)
         
         # # catch the brackets first.
         if form_check_msg_raw in ["The student's response has excess ), (", "The student's response has missing ), ("]:
@@ -669,11 +665,7 @@ def run_all(commonMistakes):
             #     store_results(result_store, message_store, to_mod, A, B, raw_A, raw_B, counter)
         elif form_check_bool_raw:
             i["recommendedFeedback"] =  "(1) " + form_check_msg_raw
-            # store_results(result_store, message_store, to_mod, A, B, raw_A, raw_B, counter)
-            # message_store.append(form_check_msg_raw)
-        elif form_check_bool:
-            i["recommendedFeedback"] =  '(1) ' +form_check_msg
-            # store_results(result_store, message_store, to_mod, A, B, raw_A, raw_B, counter)
+             # store_results(result_store, message_store, to_mod, A, B, raw_A, raw_B, counter)
         elif len(to_mod) <= 2:
             i["recommendedFeedback"] =  generate_mult_msg(to_mod)
             # store_results(result_store, message_store, to_mod, A, B, raw_A, raw_B, counter)
