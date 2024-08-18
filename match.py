@@ -12,6 +12,9 @@ from numpy import spacing
 import numpy as np
 from sympy.parsing.sympy_parser import T as parser_transformations
 import Levenshtein
+import itertools
+from fractions import Fraction
+from itertools import permutations
 from collections import Counter
 from evaluationFunction.expression_utilities import (
     substitute_input_symbols,
@@ -19,6 +22,8 @@ from evaluationFunction.expression_utilities import (
     create_sympy_parsing_params,
     convert_absolute_notation
 )
+
+
 
 
 def lambda_handler(event, context):
@@ -301,6 +306,8 @@ def extract_recursive(node, children_list):
             extract_recursive(i, children_list)
 
 
+
+
 ## this is to compare the raw string, using string edit distance. 
 ## can help to capture some initial mistakes
 def raw_form_check(str1, str2):
@@ -345,11 +352,11 @@ def raw_form_check(str1, str2):
     
     if diff_char_raw and set(diff_char_raw).issubset(set(['(', ')', '_','*','/','-','+'])):
         if in_1_not_2_raw and in_2_not_1_raw and set(in_1_not_2_raw).issubset(set(['(', ')', '_','*','/','-','+'])) and set(in_2_not_1_raw).issubset(set(['(', ')', '_','*','/','-','+'])):
-            return True, f"The student's response has excess terms {', '.join(list(set(in_1_not_2_raw)))} and is missing terms {', '.join(list(set(in_2_not_1_raw)))}"
+            return True, f"The student's response has excess term {', '.join(list(set(in_1_not_2_raw)))} and is missing term {', '.join(list(set(in_2_not_1_raw)))}"
         if in_1_not_2_raw and set(in_1_not_2_raw).issubset(set(['(', ')', '_','*','/','-','+'])):
-            return True, f"The student's response has excess terms {', '.join(list(set(in_1_not_2_raw)))}"
+            return True, f"The student's response has excess term {', '.join(list(set(in_1_not_2_raw)))}"
         if in_2_not_1_raw and set(in_2_not_1_raw).issubset(set(['(', ')', '_','*','/','-','+'])):
-            return True, f"The student's response has missing terms {', '.join(list(set(in_2_not_1_raw)))}"
+            return True, f"The student's response has missing term {', '.join(list(set(in_2_not_1_raw)))}"
     
     elif len(diff_char) == 1:
         if len(in_1_not_2) == 1:
@@ -359,75 +366,6 @@ def raw_form_check(str1, str2):
     elif len(set(diff_char)) == 2:
         if len(in_1_not_2) == 1:
             return True, f"The student's response has term {in_1_not_2[0]} instead of term {in_2_not_1[0]}"    
-   
-    return False, 'NA'
-
-## this is to compare the sympy parsed string, using string edit distance. 
-## can help to capture some initial mistakes
-def form_check(str1, str2):
-    str1 = re.sub(r'[\(\) ]+','',str(str1))
-    str2 = re.sub(r'[\(\) ]+','',str(str2))
-    sorted_str1 = ''.join(sorted(str(str1)))
-    sorted_str2 = ''.join(sorted(str(str2)))
-    counter_str1 = Counter(sorted_str1)
-    counter_str2 = Counter(sorted_str2)
-
-    lower_sorted_str1 = ''.join(sorted(str(str1).lower()))
-    lower_sorted_str2 = ''.join(sorted(str(str2).lower()))
-    lower_counter_str1 = Counter(lower_sorted_str1)
-    lower_counter_str2 = Counter(lower_sorted_str2)
-
-    # Characters in str1 but not in str2
-    in_1_not_2 = sorted(list((counter_str1 - counter_str2).elements()))
-    
-    # Characters in str2 but not in str1
-    in_2_not_1 = sorted(list((counter_str2 - counter_str1).elements()))
-
-    diff_char = []
-    uniq_char = set(counter_str1.keys()).union(set(counter_str2.keys()))
-
-    diff_char_lower = []
-    uniq_char_lower = set(lower_counter_str1.keys()).union(set(lower_counter_str2.keys()))
-
-    for char in uniq_char:
-        if counter_str1[char] != counter_str2[char]:
-            diff_count = abs(counter_str1[char] - counter_str2[char])
-            diff_char.extend([char] * diff_count)
-    
-    for char in uniq_char_lower:
-        if lower_counter_str1[char] != lower_counter_str2[char]:
-            diff_count = abs(lower_counter_str1[char] - lower_counter_str2[char])
-            diff_char_lower.extend([char] * diff_count)
-    
-    diff_char.sort()
-
-    ## capture _ early, else in AST edit distance wil be much larger
-    if diff_char and set(diff_char).issubset(set(['_'])):
-        if in_1_not_2 and set(in_1_not_2).issubset(set(['_'])):
-            return True, f"The student's response has excess term {', '.join(list(set(in_1_not_2)))}"
-        if in_2_not_1 and set(in_2_not_1).issubset(set(['_'])):
-            return True, f"The student's response has missing term {', '.join(list(set(in_2_not_1)))}"
-    
-    elif len(diff_char) == 1:
-        if len(in_1_not_2) == 1:
-            return True, f"The student's response has excess term {', '.join(in_1_not_2)}"
-        else:
-            return True, f"The student's response has missing term {', '.join(in_2_not_1)}"
-    elif len(set(diff_char)) == 2:
-        if len(in_1_not_2) == 1:
-            return True, f"The student's response has {in_1_not_2[0]} instead of {in_2_not_1[0]}"    
-        elif re.search(r'[A-Za-z0-9]',('').join(diff_char)) and re.search(r'[\*\/]',(', ').join(diff_char)):
-            if in_1_not_2 == diff_char:
-                return True, f"The student's response has excess term {', '.join(diff_char)}"    
-            elif in_2_not_1 == diff_char:
-                return True, f"The student's response has missing term {', '.join(diff_char)}"    
-    ## capture **2 early, else in AST edit distance wil be much larger
-    elif len(diff_char) == 3 and re.search(r'[A-Za-z0-9]',('').join(diff_char)) and re.search(r'[\*]{2}',('').join(diff_char)):
-        if in_1_not_2 == diff_char:
-            return True, f"The student's response has excess term **{re.search(r'[A-Za-z0-9]',('').join(diff_char))}"
-        elif in_2_not_1 == diff_char:
-            return True, f"The student's response has missing term **{re.search(r'[A-Za-z0-9]',('').join(diff_char))}"
-
    
     return False, 'NA'
 
@@ -454,9 +392,9 @@ def store_results(storage, message, to_mod, treeA, treeB, raw_A, raw_B, row):
 def recursive_extract_node(node, string):
     node.set_value(re.sub(r'\|.*','',node.value))
     if node.isLeaf:
-        string += node.value
+        string += "(" + node.value + ")"
         return string
-    elif node.type in ('operator','function'):
+    elif node.type in ('operator'):
         range_len = len(node.children)
         for i in range(range_len):
             if i == 0:
@@ -466,38 +404,53 @@ def recursive_extract_node(node, string):
                 string += node.value
             elif i == range_len - 1:
                 string += ')'
+    elif node.type in ('function'):
+        string += node.value
+        if '(' not in string:
+            string = recursive_extract_node(node.children[0], string)
     return string
 
 
 def generate_message(ops):
     if ops[0] == 'I':
-        if ops[2].type in ['numeric','variable','function']:
-            return f"The student's response is missing term {re.sub(r'\|.*','',ops[2].value)}."
+        if ops[2].type in ['numeric','variable']:
+            return f"The student's response is missing term {re.sub(r'\|.*','',ops[2].parent.value) if ops[2].parent is not None and ops[2].parent!=0 and ops[2].parent.type != 'function' else ''}({re.sub(r'\|.*','',ops[2].value)})."
+        elif ops[2].type == 'function':
+            return f"The student's response is missing term {recursive_extract_node(ops[2],'')}. "
         else:
-            return f"The student's response is missing term {recursive_extract_node(ops[2],'')[1:-1]}. "
+            return f"The student's response is missing term {re.sub(r'\|.*','',ops[2].parent.value) if ops[2].parent is not None and ops[2].parent!=0 and ops[2].parent.type != 'function'  else ''}{recursive_extract_node(ops[2],'')}. "
     elif ops[0] == 'R':
-         if ops[1].type in ['numeric','variable','function']:
-            return f"The student's response has excess term {re.sub(r'\|.*','',ops[1].value)}. "
+         if ops[1].type in ['numeric','variable']:
+            return f"The student's response has excess term {re.sub(r'\|.*','',ops[1].parent.value) if ops[1].parent is not None and ops[1].parent!=0 and ops[1].parent.type != 'function'  else ''}({re.sub(r'\|.*','',ops[1].value)}). "
+         elif ops[1].type == 'function':
+            return f"The student's response is missing term {recursive_extract_node(ops[1],'')}. "
          else:
-            return f"The student's response has excess term {recursive_extract_node(ops[1],'')[1:-1]}. "
+            return f"The student's response has excess term {re.sub(r'\|.*','',ops[1].parent.value) if ops[1].parent is not None and ops[1].parent!=0 and ops[1].parent.type != 'function'  else ''}{recursive_extract_node(ops[1],'')}. "
     else:
-        if ops[2].type in ['numeric','variable','function']:
-            ins_term_str =  f'{re.sub(r'\|.*','',ops[2].value)}'
+        if ops[2].type in ['numeric','variable']:
+            ins_term_str =  f'{re.sub(r'\|.*','',ops[2].parent.value) if ops[2].parent is not None and ops[2].parent!=0 and ops[2].parent.type != 'function'  else ''}({re.sub(r'\|.*','',ops[2].value)})'
+        elif ops[2].type == 'function':
+            ins_term_str = f'{recursive_extract_node(ops[2],'')}'
         else:
-            ins_term_str = recursive_extract_node(ops[2],'')[1:-1]
-        if ops[1].type in ['numeric','variable','function']:
-            rem_term_str = f'{re.sub(r'\|.*','',ops[1].value)}'
+            ins_term_str = f'{re.sub(r'\|.*','',ops[2].parent.value) if ops[2].parent is not None and ops[2].parent!=0 and ops[2].parent.type != 'function'  else ''}{recursive_extract_node(ops[2],'')}'
+        if ops[1].type in ['numeric','variable']:
+            rem_term_str = f'{re.sub(r'\|.*','',ops[1].parent.value) if ops[1].parent is not None and ops[1].parent!=0 and ops[1].parent.type != 'function'  else ''}({re.sub(r'\|.*','',ops[1].value)})'
+        elif ops[1].type == 'function':
+            rem_term_str = f'{recursive_extract_node(ops[1],'')}'
         else:
-            rem_term_str = recursive_extract_node(ops[1],'')[1:-1]
+            rem_term_str = f'{re.sub(r'\|.*','',ops[1].parent.value) if ops[1].parent is not None and ops[1].parent!=0 and ops[1].parent.type != 'function'  else ''}{recursive_extract_node(ops[1],'')}'
         
         return f"The student's response has the term {rem_term_str} instead of the term {ins_term_str}. "
 
 def generate_mult_msg(to_mod):
-    uniq_msg = list(set([generate_message(to_mod[i]) for i in range(len(to_mod))]))
+    if len(set([generate_message(to_mod[i]) for i in range(len(to_mod))])) < len([generate_message(to_mod[i]) for i in range(len(to_mod))]):
+        uniq_msg = list(set([generate_message(to_mod[i]) for i in range(len(to_mod))]))
+    else:
+        uniq_msg = [generate_message(to_mod[i]) for i in range(len(to_mod))]
     msg = ''
        
     for i in range(len(uniq_msg)):
-            msg += f'({i+1}) {uniq_msg[i]} '
+        msg += f'({i+1}) {uniq_msg[i]} '
 
     
     return msg
@@ -586,9 +539,9 @@ def parse_tree(expr_a, expr_b):
 
     # to remove all the children of operators from to_mod to prevent double count of edist
     for i in to_mod[:]:
-        if i[0] == 'R' and i[1] and i[1].type in ('operator'):
+        if i[0] == 'R' and i[1] and i[1].type in ['operator','function']:
             remove_children(i[1], to_mod)
-        elif i[0] == 'I' and i[2] and i[2].type in ('operator'):
+        elif i[0] == 'I' and i[2] and i[2].type in ['operator','function']:
             remove_children(i[2], to_mod)
 
     # M is matched.
@@ -615,6 +568,953 @@ def parse_tree(expr_a, expr_b):
 
     return to_mod, A , B
 
+##identify differences in char
+def get_diff(a, b):
+    str1 = a
+    str2 = b
+    sorted_str1 = ''.join(sorted(str(str1)))
+    sorted_str2 = ''.join(sorted(str(str2)))
+    counter_str1 = Counter(sorted_str1)
+    counter_str2 = Counter(sorted_str2)
+
+
+    # Characters in str1 but not in str2
+    in_1_not_2 = sorted(list((counter_str1 - counter_str2).elements()))
+
+    # Characters in str2 but not in str1
+    in_2_not_1 = sorted(list((counter_str2 - counter_str1).elements()))
+
+    diff_char = []
+    uniq_char = set(counter_str1.keys()).union(set(counter_str2.keys()))
+
+    for char in uniq_char:
+        if counter_str1[char] != counter_str2[char]:
+            diff_count = abs(counter_str1[char] - counter_str2[char])
+            diff_char.extend([char] * diff_count)
+
+    return diff_char
+
+
+def replace_sqrt(exp):
+    res = ""
+    i = 0
+    while i < len(exp):
+        if exp[i:i+5] == "sqrt(":
+            res += "("  
+            i += 5  
+            bracket_cnt = 1
+            start_idx = i
+            while i < len(exp) and bracket_cnt > 0:
+                if exp[i] == '(':
+                    bracket_cnt += 1
+                elif exp[i] == ')':
+                    bracket_cnt -= 1
+                i += 1
+    
+            res += exp[start_idx:i-1] + ")**(1/2)"
+        else:
+            res += exp[i]
+            i += 1
+    
+    return res
+
+## this is for validate insert operations suggested, by applying them to the submission string
+
+# for insert operators, you would typically have another operand e.g trying to insert *2x to y in (2+y). So we need to find the pos of y so that we can append
+def find_pos(string, substr):
+    idx = string.find(substr)
+    positions = []
+    while idx != -1:
+        positions.append(idx)
+        idx = string.find(substr, idx + 1)
+    return positions
+
+# for insert operators, you would typically have another operand e.g trying to insert *2x to y in (2+y). So we need to find the pos of y so that we can append
+def find_pos_regex(string, pattern):
+    print("string", string)
+    print("pattern", pattern)
+    matches = re.finditer(pattern, string)
+    positions = []
+    for match in matches:
+        start_idx = match.start()
+        end_idx = match.end()
+        len_match = end_idx - start_idx
+        positions.append((start_idx,len_match))
+    print(positions)
+    return positions
+    
+## this is for validate insert operations suggested, by applying them to the submission string
+def test_insert(submission, answer, params, expr_a, correction):
+
+    ## short-circuit, when replacing the entire submission i.e replacing the entire (3+y) with 5
+    if correction.parent is None or correction.parent == 0:
+        submission = ''
+        to_add =recursive_extract_node(correction,'')
+        a, b = check_equality(to_add,answer,params,{})
+        if a == b:
+            return True
+    elif correction.parent.parent is None or correction.parent.parent == 0 or correction.parent.parent.value == '=':
+        new_str = "(" + submission + ")" + to_add
+        a, b = check_equality(new_str,answer,params,{})
+        if a == b:
+            return True
+    else:
+        # operator + operand
+        to_add = re.sub(r"\|\d+", "",correction.parent.value) + (recursive_extract_node(correction,''))
+
+
+    ## for cases where submission string is e.g 0.7 but sympy is 7/10. Can't match if we match str, so evaluate to match
+    try:
+        submission_value = float(sp.sympify(submission).evalf())
+        expr_a_value = float(expr_a)
+        if submission_value == expr_a_value:
+            new_str = "(" + submission + ")" + "(" + to_add + ")"
+            a, b = check_equality(new_str,answer,params,{})
+            if a == b:
+                return True
+    except (TypeError, ValueError, sp.SympifyError) as e:
+        pass
+
+    # parse ^ in submission to ** to standardize w sympy
+    submission = re.sub(r"\^","**",submission)
+    expr_a = str(expr_a)
+    submission = re.sub(r"\s|","",submission)
+    ## replace sqrt str with **(1/2)
+    submission = replace_sqrt(submission)
+    expr_a = re.sub(r"|\s","",expr_a)
+    
+    ## there could be multiple sibling operands. e.g if i'm adding *2z to x*y, the sibling could be x or y
+    if correction.parent:
+        siblings = [ i for i in correction.parent.children if i != correction]
+    
+    ## get idx of sibling to be used for append
+    idx = 0
+    for i in range(len(siblings)):
+        if siblings[i].type in ["numeric","variable"]:
+            ## because 1/2 is noramlly not represented as 1/2 but e.g pi/2 if there's another var
+            if siblings[i].value == '1/2':
+                idx = i
+                continue
+            ## prioritize non 1/2 sibling
+            if siblings[i].value in submission:
+                idx = i
+                break
+
+    ## pattern matching to find the position in the string to append the new item
+    if siblings[idx].type in ["function","operator"]:
+        str_to_find = re.sub(r"\|\d+", "", recursive_extract_node(siblings[0],'')[1:-1])
+
+        ## to match a/b
+        match = re.search(r"(.+)\*\((.+)\*\*\(\-1\)\)",  str_to_find)
+        ## to match 1/b
+        match2 = re.search(r"(\(.+\))\*\*\(\-1\)",  str_to_find)
+        if match:
+            pattern_to_match = r"(" + match.group(1) + r")/(" + match.group(2) + r")"
+            pattern_to_match = re.sub(r'\(|\)|(?<=\*\*\()\-', '',pattern_to_match)            
+            pattern_to_match_escaped = re.escape(pattern_to_match)
+            results = find_pos_regex(submission, pattern_to_match_escaped)
+            if results == []:
+                pattern_to_match = re.sub(r'\*', '',pattern_to_match)
+                pattern_to_match_escaped = re.escape(pattern_to_match)
+                results = find_pos_regex(submission, pattern_to_match_escaped)
+            
+        elif match2:
+            pattern_to_match = ''.join(sorted(match2.group(1)))
+            pattern_to_match = re.sub(r'\(|\)|(?<=\*\*\()\-', '',pattern_to_match)
+            pattern_to_match_escaped = re.escape(pattern_to_match)
+            results = find_pos_regex(submission, pattern_to_match_escaped)
+            if results == []:
+                pattern_to_match = re.sub(r'\*', '',pattern_to_match)
+                pattern_to_match_escaped = re.escape(pattern_to_match)
+                results = find_pos_regex(submission, pattern_to_match_escaped)
+        else:
+            if re.search(r'(\+|(?<!\*)\*(?!\*))', str_to_find):
+                items = re.split(r'(\+|(?<!\*)\*(?!\*))', str_to_find ) 
+                if len(items) >= 5:
+                    str_to_find_permutation = [str_to_find]
+                else:
+                    str_to_find_permutation = [''.join(itertools.chain.from_iterable(p)) for p in itertools.permutations(items)]
+                patterns_to_match = [re.sub(r'\+\-','-',re.sub(r'\(|\)|(?<=\*\*\()\-', r'',i)) for i in str_to_find_permutation]
+                patterns_to_match_escaped = [re.escape(i) for i in patterns_to_match]
+                results = []
+                counter = 0
+                for pattern in patterns_to_match_escaped:
+                    result = find_pos_regex(submission, pattern)
+                    results.extend(result)
+                    counter+= 1
+                    if counter > 20:
+                        break
+                if results == []:
+                    patterns_to_match = [re.sub(r'\+\-','-',re.sub(r'\(|\)|\*', r'',i)) for i in str_to_find_permutation]
+                    patterns_to_match_escaped = [re.escape(i) for i in patterns_to_match]
+                    counter = 0
+                    for pattern in patterns_to_match_escaped:
+                        result = find_pos_regex(submission, pattern)
+                        results.extend(result) 
+                        counter+= 1
+                        if counter > 20:
+                            break
+            else:
+                pattern_to_match = re.sub(r'\(|\)|(?<=\*\*\()\-', r'',str_to_find)
+                pattern_to_match_escaped = re.escape(pattern_to_match)
+                results = find_pos_regex(submission, pattern_to_match_escaped)
+                if results == []:
+                    pattern_to_match = re.sub(r'\*', '',pattern_to_match)
+                    pattern_to_match_escaped = re.escape(pattern_to_match)
+                    results = find_pos_regex(submission, pattern_to_match_escaped)
+        
+        possible_pos = [i[0] for i in results]
+        len_siblings = [i[1] for i in results]
+    else:
+        clean_sibling_element = re.sub(r"\|\d+", "", siblings[idx].value)
+        possible_pos = find_pos(submission, clean_sibling_element)
+        len_siblings = [len(clean_sibling_element) for i in possible_pos]
+    
+    
+    ## try appending the new element and check if the new submission matches the answer
+    for idx in range(len(possible_pos)):
+        
+        new_str = submission[:possible_pos[idx]] + "((" + submission[possible_pos[idx]:]
+        new_str = new_str[:possible_pos[idx]+len_siblings[idx]+2] +')' + to_add + ')' + new_str[possible_pos[idx]+len_siblings[idx]+2:]
+        a, b = check_equality(new_str,answer,params,{})
+        if a == b:
+            return True
+    
+    return False
+
+## this is for validate remove operations suggested, by applying them to the submission string
+
+def test_removal(submission, answer, params, expr_a, correction):
+
+    if correction.parent is not None and correction.parent != 0:
+        to_remove = re.sub(r"\|\d+", "",correction.parent.value) + (recursive_extract_node(correction,''))
+    else:
+        to_remove = recursive_extract_node(correction,'')
+    expr_a = str(expr_a)
+    submission = re.sub(r"\^","**",submission)
+    
+    submission = re.sub(r"\s","",submission)
+    submission = replace_sqrt(submission)
+    expr_a = re.sub(r"|\s","",str(expr_a))
+        
+    
+    if correction.type in ["function","operator"]:
+        str_to_find = re.sub(r"\|\d+", "", recursive_extract_node(correction,'')[1:-1])
+
+        ## to match a/b
+        match = re.search(r"(.+)\*\((.+)\*\*\(\-1\)\)",  str_to_find)
+        # to match 1/b
+        match2 = re.search(r"(\(.+\))\*\*\(\-1\)",  str_to_find)
+        if match:
+            pattern_to_match = r"(" + match.group(1) + r")/(" + match.group(2) + r")"
+            pattern_to_match = re.sub(r'\(|\)|(?<=\*\*\()\-', '',pattern_to_match)            
+            pattern_to_match_escaped = re.escape(pattern_to_match)
+            results = find_pos_regex(submission, pattern_to_match_escaped)
+            if results == []:
+                pattern_to_match = re.sub(r'\*', '',pattern_to_match)
+                pattern_to_match_escaped = re.escape(pattern_to_match)
+                results = find_pos_regex(submission, pattern_to_match_escaped)
+        elif match2:
+            pattern_to_match = ''.join(sorted(match2.group(1)))
+            pattern_to_match = re.sub(r'\(|\)|(?<=\*\*\()\-', '',pattern_to_match)
+            pattern_to_match_escaped = re.escape(pattern_to_match)
+            results = find_pos_regex(submission, pattern_to_match_escaped)
+            if results == []:
+                pattern_to_match = re.sub(r'\*', '',pattern_to_match)
+                pattern_to_match_escaped = re.escape(pattern_to_match)
+                results = find_pos_regex(submission, pattern_to_match_escaped)
+        else:
+            if re.search(r'(\+|(?<!\*)\*(?!\*))', str_to_find):
+                items = re.split(r'(\+|(?<!\*)\*(?!\*))', str_to_find ) 
+                if len(items) >= 5:
+                    str_to_find_permutation = [str_to_find]
+                else:   
+                    str_to_find_permutation = [''.join(itertools.chain.from_iterable(p)) for p in itertools.permutations(items)]
+                patterns_to_match = [re.sub(r'\+\-','-',re.sub(r'\(|\)|(?<=\*\*\()\-', r'',i)) for i in str_to_find_permutation]
+                patterns_to_match_escaped = [re.escape(i) for i in patterns_to_match]
+                results = []
+                counter = 0
+                for pattern in patterns_to_match_escaped:
+                    result = find_pos_regex(submission, pattern)
+                    results.extend(result)
+                    counter+= 1
+                    if counter > 20:
+                        break
+                if results == []:
+                    patterns_to_match = [re.sub(r'\+\-','-',re.sub(r'\(|\)|\*', r'',i)) for i in str_to_find_permutation]
+                    patterns_to_match_escaped = [re.escape(i) for i in patterns_to_match]
+                    counter = 0
+                    for pattern in patterns_to_match_escaped:
+                        result = find_pos_regex(submission, pattern)
+                        results.extend(result) 
+                        counter+= 1
+                        if counter > 20:
+                            break
+            else:
+                pattern_to_match = re.sub(r'\(|\)|(?<=\*\*\()\-', r'',str_to_find)
+                pattern_to_match_escaped = re.escape(pattern_to_match)
+                results = find_pos_regex(submission, pattern_to_match_escaped)
+                if results == []:
+                    pattern_to_match = re.sub(r'\*', '',pattern_to_match)
+                    pattern_to_match_escaped = re.escape(pattern_to_match)
+                    results = find_pos_regex(submission, pattern_to_match_escaped)
+
+        possible_pos = [i[0] for i in results]
+        len_siblings = [i[1] for i in results]
+    ## this is for numeric, variables
+    else:
+        clean_element = re.sub(r"\|\d+", "", correction.value)
+        ## because 1/2 typically expressed as .../(2..)
+        clean_match = re.search(r'1/(\d+)',clean_element)
+        if clean_match:
+            clean_element = clean_match.group(1)
+        ## -1 in AST is just - in string
+        elif clean_element == '-1' and correction.parent.value == '*':
+            clean_element = '-'
+            
+        possible_pos = find_pos(submission, clean_element)
+        len_siblings = [len(clean_element) for i in possible_pos]
+    
+    ## replace multiples with * 1 and additions with + 0.
+    for idx in range(len(possible_pos)):
+        if re.sub(r"\|\d+", "", correction.parent.value) in ['+']:
+            new_str = submission[:possible_pos[idx]] + '(0)' + submission[possible_pos[idx]+len_siblings[idx]:]
+            a, b = check_equality(new_str,answer,params,{})
+            if a == b:
+                return True
+        elif re.sub(r"\|\d+", "", correction.parent.value)  in ['*','**']:
+            ## tried subbing in 10 instead but seems like parser doesn't parse the log properly
+            if to_remove == "*(log(E)**(-1))" and possible_pos:
+                return True
+            else:
+                new_str = submission[:possible_pos[idx]] + '(1)' + submission[possible_pos[idx]+len_siblings[idx]:]
+                a, b = check_equality(new_str,answer,params,{})
+                if a == b:
+                    return True
+    
+    return False
+
+
+
+
+## this is for validate update operations suggested, by applying them to the submission string
+
+def test_update(submission, answer, params, expr_a, remove, update):
+    
+    if get_diff(remove.value, update.value) == ['-']:
+        if remove.value[0] == '-':
+            possible_pos = find_pos(submission, '-')
+            len_siblings = [1 for i in possible_pos]
+            for idx in range(len(possible_pos)):
+                new_str = submission[:possible_pos[idx]] + submission[possible_pos[idx]+len_siblings[idx]:]
+                a, b = check_equality(new_str,answer,params,{})
+                if a == b:
+                    return True  
+    
+    if update.parent:
+        to_add_w_signs = re.sub(r"\|\d+", "",update.parent.value) + (recursive_extract_node(update,''))
+    
+
+
+    to_remove = recursive_extract_node(remove,'')
+    to_add = recursive_extract_node(update,'')
+
+
+    if remove.type == 'numeric':
+        try:
+            numerator_match = re.search(r'(\d+)/?(\d+)?', remove.value)
+            numerator = numerator_match.group(1)
+            possible_pos = find_pos(submission, numerator)
+            len_siblings = [len(numerator) for i in possible_pos]
+            for idx in range(len(possible_pos)):
+                if re.sub(r"\|\d+", "",remove.parent.value) == '+':
+                    new_str = submission[:possible_pos[idx] + len_siblings[idx]] + f'+({to_add})-({to_remove})' + submission[possible_pos[idx]+len_siblings[idx]:]
+                    a, b = check_equality(new_str,answer,params,{})
+                    if a == b:
+                        return True
+                else:
+                    new_str = submission[:possible_pos[idx] + len_siblings[idx]] + f'*({to_add})/({to_remove})' + submission[possible_pos[idx]+len_siblings[idx]:]
+                    a, b = check_equality(new_str,answer,params,{})
+                    if a == b:
+                        return True
+                
+            
+        
+        except:
+            pass
+
+    ## when replcing the entire char with function. row 617
+    if update.parent is None or update.parent == 0:
+        submission = ''
+        to_add =recursive_extract_node(update,'')
+        a, b = check_equality(to_add,answer,params,{})
+        if a == b:
+            return True
+    
+
+    expr_a = str(expr_a)
+    submission = re.sub(r"\s","",submission)
+    submission = replace_sqrt(submission)
+    expr_a = re.sub(r"|\s","",str(expr_a))
+        
+
+    if remove.type in ["operator"]:
+        str_to_find = re.sub(r"\|\d+", "", recursive_extract_node(remove,'')[1:-1])
+
+        ## to match a/b
+        match = re.search(r"(.+)\*\((.+)\*\*\(\-1\)\)",  str_to_find)
+        # to match 1/b
+        match2 = re.search(r"(\(.+\))\*\*\(\-1\)",  str_to_find)
+        if match:
+            print('in match 1')
+            pattern_to_match = r"(" + match.group(1) + r")/(" + match.group(2) + r")"
+            pattern_to_match = re.sub(r'\(|\)|(?<=\*\*\()\-', '',pattern_to_match)            
+            pattern_to_match_escaped = re.escape(pattern_to_match)
+            results = find_pos_regex(submission, pattern_to_match_escaped)
+            if results == []:
+                pattern_to_match = re.sub(r'\*', '',pattern_to_match)
+                pattern_to_match_escaped = re.escape(pattern_to_match)
+                results = find_pos_regex(submission, pattern_to_match_escaped)
+
+        ## to match 1/b
+        elif match2:
+            pattern_to_match = ''.join(sorted(match2.group(1)))
+            pattern_to_match = re.sub(r'\(|\)|(?<=\*\*\()\-', '',pattern_to_match)
+            pattern_to_match_escaped = re.escape(pattern_to_match)
+            results = find_pos_regex(submission, pattern_to_match_escaped)
+            if results == []:
+                pattern_to_match = re.sub(r'\*', '',pattern_to_match)
+                pattern_to_match_escaped = re.escape(pattern_to_match)
+                results = find_pos_regex(submission, pattern_to_match_escaped)
+        else:
+            if re.search(r'(\+|(?<!\*)\*(?!\*))', str_to_find):
+                items = re.split(r'(\+|(?<!\*)\*(?!\*))', str_to_find ) 
+                if len(items) >= 5:
+                    str_to_find_permutation = [str_to_find]
+                else:
+                    str_to_find_permutation = [''.join(itertools.chain.from_iterable(p)) for p in itertools.permutations(items)]
+                patterns_to_match = [re.sub(r'\+\-','-',re.sub(r'\(|\)|(?<=\*\*\()\-', r'',i)) for i in str_to_find_permutation]
+                patterns_to_match_escaped = [re.escape(i) for i in patterns_to_match]
+                results = []
+                counter = 0
+                for pattern in patterns_to_match_escaped:
+                    result = find_pos_regex(submission, pattern)
+                    results.extend(result)
+                    counter+= 1
+                    if counter > 20:
+                        break
+                if results == []:
+                    patterns_to_match = [re.sub(r'\+\-','-',re.sub(r'\(|\)|\*', r'',i)) for i in str_to_find_permutation]
+                    patterns_to_match_escaped = [re.escape(i) for i in patterns_to_match]
+                    counter = 0
+                    for pattern in patterns_to_match_escaped:
+                        result = find_pos_regex(submission, pattern)
+                        results.extend(result) 
+                        counter+= 1
+                        if counter > 20:
+                            break
+            else:
+                pattern_to_match = re.sub(r'\(|\)|(?<=\*\*\()\-', r'',str_to_find)
+                pattern_to_match_escaped = re.escape(pattern_to_match)
+                results = find_pos_regex(submission, pattern_to_match_escaped)
+                if results == []:
+                    pattern_to_match = re.sub(r'\*', '',pattern_to_match)
+                    pattern_to_match_escaped = re.escape(pattern_to_match)
+                    results = find_pos_regex(submission, pattern_to_match_escaped)
+
+        possible_pos = [i[0] for i in results]
+        len_siblings = [i[1] for i in results]
+    ## this is for numeric, variables
+    else:
+        pattern_to_match = re.sub(r"\|\d+", "", remove.value)
+        ## because 1/2 typically expressed as .../(2..)
+        clean_match = re.search(r'1/(\d+)',pattern_to_match)
+        if clean_match:
+
+            pattern_to_match = clean_match.group(1)
+            if to_add_w_signs:
+                if re.search(r'1/(\d+)',to_add_w_signs):  
+                    to_add_w_signs = re.sub(r'1/(\d+)',r'\1',to_add_w_signs)
+                elif re.search(r'(\d+)/(\d+)', to_add_w_signs):
+                    to_add_w_signs = re.sub(r'(\d+)/(\d+)', r'\2/\1', to_add_w_signs)  
+                else:
+                    to_add_w_signs = re.sub(r'(\d+)', r'1/\1', to_add_w_signs) 
+
+            if re.search(r'1/(\d+)',to_add):
+                to_add =re.sub(r'1/(\d+)',r'\1',to_add)
+            elif re.search(r'(\d+)/(\d+)', to_add):
+                to_add = re.sub(r'(\d+)/(\d+)', r'\2/\1', to_add)  
+            else:
+                to_add = re.sub(r'(\d+)', r'1/\1', to_add) 
+            
+        ## -1 in AST is just - in string
+        elif pattern_to_match == '-1' and remove.parent.value == '*':
+            pattern_to_match = '-'
+        
+        possible_pos = find_pos(submission, pattern_to_match)
+        if possible_pos == []:
+            try:
+                fraction = Fraction(pattern_to_match)
+                pattern_to_match = str(float(fraction))
+                possible_pos = find_pos(submission, pattern_to_match)
+            except:
+                pass
+
+        len_siblings = [len(pattern_to_match) for i in possible_pos]
+    
+   
+    for idx in range(len(possible_pos)):
+        new_str = submission[:possible_pos[idx]] + f'{to_add}' + submission[possible_pos[idx]+len_siblings[idx]:]
+        a, b = check_equality(new_str,answer,params,{})
+        if a == b:
+            return True
+        new_str = submission[:possible_pos[idx]] + f'{to_add[1:-1]}' + submission[possible_pos[idx]+len_siblings[idx]:]
+        a, b = check_equality(new_str,answer,params,{})
+        if a == b:
+            return True
+        if update.parent:
+            new_str = submission[:possible_pos[idx]] + f'{to_add_w_signs}' + submission[possible_pos[idx]+len_siblings[idx]:]
+
+            a, b = check_equality(new_str,answer,params,{})
+            if a == b:
+                return True
+    new_str = submission.replace(pattern_to_match, to_add)
+    a, b = check_equality(new_str,answer,params,{})
+    if a == b:
+        return True
+    
+    return False
+
+## this is for 2 steps operations, starting with update. Mainly same as normal update operations, just that it triggers the 2nd step when done instead of checking if output matches answer
+
+def comb_test_update(submission, answer, params, expr_a, remove, update, next_step):
+    
+    if get_diff(remove.value, update.value) == ['-']:
+        if remove.value[0] == '-':
+            possible_pos = find_pos(submission, '-')
+            len_siblings = [1 for i in possible_pos]
+            for idx in range(len(possible_pos)):
+                new_str = submission[:possible_pos[idx]] + submission[possible_pos[idx]+len_siblings[idx]:]
+                if trigger_check(new_str, answer, params, expr_a, next_step):
+                    return True
+            
+
+     ## when replcing the entire char with function. row 617
+    if remove.parent:
+        to_remove_w_signs = re.sub(r"\|\d+", "",remove.parent.value) + (recursive_extract_node(remove,''))
+
+    if update.parent:
+        to_add_w_signs = re.sub(r"\|\d+", "",update.parent.value) + (recursive_extract_node(update,''))
+    
+
+
+    to_remove = recursive_extract_node(remove,'')
+    to_add = recursive_extract_node(update,'')
+
+
+    if remove.type == 'numeric':
+        try:
+            numerator_match = re.search(r'(\d+)/?(\d+)?', remove.value)
+            numerator = numerator_match.group(1)
+            possible_pos = find_pos(submission, numerator)
+            len_siblings = [len(numerator) for i in possible_pos]
+            for idx in range(len(possible_pos)):
+                if re.sub(r"\|\d+", "",remove.parent.value) == '+':
+                    new_str = submission[:possible_pos[idx] + len_siblings[idx]] + f'+({to_add})-({to_remove})' + submission[possible_pos[idx]+len_siblings[idx]:]
+                    if trigger_check(new_str, answer, params, expr_a, next_step):
+                        return True
+                else:
+                    new_str = submission[:possible_pos[idx] + len_siblings[idx]] + f'*({to_add})/({to_remove})' + submission[possible_pos[idx]+len_siblings[idx]:]
+                    if trigger_check(new_str, answer, params, expr_a, next_step):
+                        return True
+                
+        
+        
+        except:
+            pass
+
+    expr_a = str(expr_a)
+    submission = re.sub(r"\s","",submission)
+    submission = replace_sqrt(submission)
+    expr_a = re.sub(r"|\s","",str(expr_a))
+            
+
+    
+    if remove.type in ["operator"]:
+        str_to_find = re.sub(r"\|\d+", "", recursive_extract_node(remove,'')[1:-1])
+
+        ## to match a/b
+        match = re.search(r"(.+)\*\((.+)\*\*\(\-1\)\)",  str_to_find)
+        # to match 1/b
+        match2 = re.search(r"(\(.+\))\*\*\(\-1\)",  str_to_find)
+        if match:
+            pattern_to_match = r"(" + match.group(1) + r")/(" + match.group(2) + r")"
+            pattern_to_match = re.sub(r'\(|\)|(?<=\*\*\()\-', '',pattern_to_match)            
+            pattern_to_match_escaped = re.escape(pattern_to_match)
+            results = find_pos_regex(submission, pattern_to_match_escaped)
+            if results == []:
+                pattern_to_match = re.sub(r'\*', '',pattern_to_match)
+                pattern_to_match_escaped = re.escape(pattern_to_match)
+                results = find_pos_regex(submission, pattern_to_match_escaped)
+        elif match2:
+            pattern_to_match = ''.join(sorted(match2.group(1)))
+            pattern_to_match = re.sub(r'\(|\)|(?<=\*\*\()\-', '',pattern_to_match)
+            pattern_to_match_escaped = re.escape(pattern_to_match)
+            results = find_pos_regex(submission, pattern_to_match_escaped)
+            if results == []:
+                pattern_to_match = re.sub(r'\*', '',pattern_to_match)
+                pattern_to_match_escaped = re.escape(pattern_to_match)
+                results = find_pos_regex(submission, pattern_to_match_escaped)
+        else:
+            if re.search(r'(\+|(?<!\*)\*(?!\*))', str_to_find):
+                items = re.split(r'(\+|(?<!\*)\*(?!\*))', str_to_find ) 
+                if len(items) >= 5:
+                    str_to_find_permutation = [str_to_find]
+                else:
+                    str_to_find_permutation = [''.join(itertools.chain.from_iterable(p)) for p in itertools.permutations(items)]
+                patterns_to_match = [re.sub(r'\+\-','-',re.sub(r'\(|\)|(?<=\*\*\()\-', r'',i)) for i in str_to_find_permutation]
+                patterns_to_match_escaped = [re.escape(i) for i in patterns_to_match]
+                results = []
+                counter = 0
+                for pattern in patterns_to_match_escaped:
+                    result = find_pos_regex(submission, pattern)
+                    results.extend(result)
+                    counter+= 1
+                    if counter > 20:
+                        break
+                if results == []:
+                    patterns_to_match = [re.sub(r'\+\-','-',re.sub(r'\(|\)|\*', r'',i)) for i in str_to_find_permutation]
+                    patterns_to_match_escaped = [re.escape(i) for i in patterns_to_match]
+                    counter = 0
+                    for pattern in patterns_to_match_escaped:
+                        result = find_pos_regex(submission, pattern)
+                        results.extend(result) 
+                        counter+= 1
+                        if counter > 20:
+                            break
+            else:
+                pattern_to_match = re.sub(r'\(|\)|(?<=\*\*\()\-', r'',str_to_find)
+                pattern_to_match_escaped = re.escape(pattern_to_match)
+                results = find_pos_regex(submission, pattern_to_match_escaped)
+                if results == []:
+                    pattern_to_match = re.sub(r'\*', '',pattern_to_match)
+                    pattern_to_match_escaped = re.escape(pattern_to_match)
+                    results = find_pos_regex(submission, pattern_to_match_escaped)
+
+        possible_pos = [i[0] for i in results]
+        len_siblings = [i[1] for i in results]
+    ## this is for numeric, variables
+    else:
+        pattern_to_match = re.sub(r"\|\d+", "", remove.value)
+        ## because 1/2 typically expressed as .../(2..)
+        clean_match = re.search(r'1/(\d+)',pattern_to_match)
+        if clean_match:
+            pattern_to_match = clean_match.group(1)
+            if to_add_w_signs:
+                if re.search(r'1/(\d+)',to_add_w_signs):  
+                    to_add_w_signs = re.sub(r'1/(\d+)',r'\1',to_add_w_signs)
+                elif re.search(r'(\d+)/(\d+)', to_add_w_signs):
+                    to_add_w_signs = re.sub(r'(\d+)/(\d+)', r'\2/\1', to_add_w_signs)  
+                else:
+                    to_add_w_signs = re.sub(r'(\d+)', r'1/\1', to_add_w_signs) 
+
+            if re.search(r'1/(\d+)',to_add):
+                to_add =re.sub(r'1/(\d+)',r'\1',to_add)
+            elif re.search(r'(\d+)/(\d+)', to_add):
+                to_add = re.sub(r'(\d+)/(\d+)', r'\2/\1', to_add)  
+            else:
+                to_add = re.sub(r'(\d+)', r'1/\1', to_add) 
+            
+        ## -1 in AST is just - in string
+        elif pattern_to_match == '-1' and remove.parent.value == '*':
+            pattern_to_match = '-'
+        
+        possible_pos = find_pos(submission, pattern_to_match)
+        if possible_pos == []:
+            try:
+                fraction = Fraction(pattern_to_match)
+                pattern_to_match = str(float(fraction))
+                possible_pos = find_pos(submission, pattern_to_match)
+            except:
+                pass
+        len_siblings = [len(pattern_to_match) for i in possible_pos]
+    
+   
+    for idx in range(len(possible_pos)):
+        new_str = submission[:possible_pos[idx]] + f'{to_add}' + submission[possible_pos[idx]+len_siblings[idx]:]
+        if trigger_check(new_str, answer, params, expr_a, next_step):
+            return True
+        new_str = submission[:possible_pos[idx]] + f'{to_add[1:-1]}' + submission[possible_pos[idx]+len_siblings[idx]:]
+        if trigger_check(new_str, answer, params, expr_a, next_step):
+            return True
+        if update.parent and remove.parent:
+            new_str = submission[:possible_pos[idx]] + f'{to_add_w_signs}' + submission[possible_pos[idx]+len_siblings[idx]:]
+
+            if trigger_check(new_str, answer, params, expr_a, next_step):
+                return True
+    new_str = submission.replace(pattern_to_match, to_add)
+    if trigger_check(new_str, answer, params, expr_a, next_step):
+        return True
+    
+
+    return False
+
+
+
+## this is for 2 steps operations, starting with removal. Mainly same as normal removal operations, just that it triggers the 2nd step when done instead of checking if output matches answer
+
+
+def comb_test_removal(submission, answer, params, expr_a, correction, next_step):
+
+    if correction.parent is not None and correction.parent != 0:
+        to_remove = re.sub(r"\|\d+", "",correction.parent.value) + (recursive_extract_node(correction,''))
+    else:
+        to_remove = recursive_extract_node(correction,'')
+
+    submission = re.sub(r"\^","**",submission)
+    expr_a = str(expr_a)
+    submission = re.sub(r"\s","",submission)
+    submission = replace_sqrt(submission)
+    expr_a = re.sub(r"|\s","",str(expr_a))
+            
+    
+    if correction.type in ["function","operator"]:
+        str_to_find = re.sub(r"\|\d+", "", recursive_extract_node(correction,'')[1:-1])
+
+        ## to match a/b
+        match = re.search(r"(.+)\*\((.+)\*\*\(\-1\)\)",  str_to_find)
+        # to match 1/b
+        match2 = re.search(r"(\(.+\))\*\*\(\-1\)",  str_to_find)
+        if match:
+            pattern_to_match = r"(" + match.group(1) + r")/(" + match.group(2) + r")"
+            pattern_to_match = re.sub(r'\(|\)|(?<=\*\*\()\-', '',pattern_to_match)            
+            pattern_to_match_escaped = re.escape(pattern_to_match)
+            results = find_pos_regex(submission, pattern_to_match_escaped)
+            if results == []:
+                pattern_to_match = re.sub(r'\*', '',pattern_to_match)
+                pattern_to_match_escaped = re.escape(pattern_to_match)
+                results = find_pos_regex(submission, pattern_to_match_escaped)
+
+        ## to match 1/b
+                
+        elif match2:
+            pattern_to_match = ''.join(sorted(match2.group(1)))
+            pattern_to_match = re.sub(r'\(|\)|(?<=\*\*\()\-', '',pattern_to_match)
+            pattern_to_match_escaped = re.escape(pattern_to_match)
+            results = find_pos_regex(submission, pattern_to_match_escaped)
+            if results == []:
+                pattern_to_match = re.sub(r'\*', '',pattern_to_match)
+                pattern_to_match_escaped = re.escape(pattern_to_match)
+                results = find_pos_regex(submission, pattern_to_match_escaped)
+        else:
+            if re.search(r'(\+|(?<!\*)\*(?!\*))', str_to_find):
+                items = re.split(r'(\+|(?<!\*)\*(?!\*))', str_to_find ) 
+                if len(items) >= 5:
+                    str_to_find_permutation = [str_to_find]
+                else:
+                    str_to_find_permutation = [''.join(itertools.chain.from_iterable(p)) for p in itertools.permutations(items)]
+                patterns_to_match = [re.sub(r'\+\-','-',re.sub(r'\(|\)|(?<=\*\*\()\-', r'',i)) for i in str_to_find_permutation]
+                patterns_to_match_escaped = [re.escape(i) for i in patterns_to_match]
+                results = []
+                counter = 0
+                for pattern in patterns_to_match_escaped:
+                    result = find_pos_regex(submission, pattern)
+                    results.extend(result)
+                    counter+= 1
+                    if counter > 20:
+                        break
+                if results == []:
+                    patterns_to_match = [re.sub(r'\+\-','-',re.sub(r'\(|\)|\*', r'',i)) for i in str_to_find_permutation]
+                    patterns_to_match_escaped = [re.escape(i) for i in patterns_to_match]
+                    counter = 0
+                    for pattern in patterns_to_match_escaped:
+                        result = find_pos_regex(submission, pattern)
+                        results.extend(result) 
+                        counter+= 1
+                        if counter > 20:
+                            break
+            else:
+                pattern_to_match = re.sub(r'\(|\)|(?<=\*\*\()\-', r'',str_to_find)
+                pattern_to_match_escaped = re.escape(pattern_to_match)
+                results = find_pos_regex(submission, pattern_to_match_escaped)
+                if results == []:
+                    pattern_to_match = re.sub(r'\*', '',pattern_to_match)
+                    pattern_to_match_escaped = re.escape(pattern_to_match)
+                    results = find_pos_regex(submission, pattern_to_match_escaped)
+
+        possible_pos = [i[0] for i in results]
+        len_siblings = [i[1] for i in results]
+    else:
+        clean_element = re.sub(r"\|\d+", "", correction.value)
+        ## because 1/2 typically expressed as .../(2..)
+        clean_match = re.search(r'1/(\d+)',clean_element)
+        if clean_match:
+            clean_element = clean_match.group(1)
+        ## -1 in AST is just - in string
+        elif clean_element == '-1' and correction.parent.value == '*':
+            clean_element = '-'
+        possible_pos = find_pos(submission, clean_element)
+        len_siblings = [len(clean_element) for i in possible_pos]
+    
+    ## replace multiples with * 1 and additions with + 0.
+    for idx in range(len(possible_pos)):
+        if re.sub(r"\|\d+", "", correction.parent.value) in ['+']:
+            new_str = submission[:possible_pos[idx]] + '(0)' + submission[possible_pos[idx]+len_siblings[idx]:]
+            if trigger_check(new_str, answer, params,expr_a, next_step):
+                return True
+        elif re.sub(r"\|\d+", "", correction.parent.value)  in ['*','**']:
+            ## tried subbing in 10 instead but seems like parser doesn't parse the log properly
+            new_str = submission[:possible_pos[idx]] + '(1)' + submission[possible_pos[idx]+len_siblings[idx]:]
+            if trigger_check(new_str, answer, params, expr_a, next_step):
+                return True
+    
+    return False
+
+
+## this is for 2 steps operations, starting with insert. Mainly same as normal insert operations, just that it triggers the 2nd step when done instead of checking if output matches answer
+
+def comb_test_insert(submission, answer, params, expr_a, correction, next_step):
+
+    to_add = re.sub(r"\|\d+", "",correction.parent.value) + (recursive_extract_node(correction,''))
+
+    try:
+        submission_value = float(sp.sympify(submission).evalf())
+        expr_a_value = float(expr_a)
+        if submission_value == expr_a_value:
+            new_str = "(" + submission + ")" + "(" + to_add + ")"
+            if trigger_check(new_str, answer, params, expr_a, next_step):
+                return True
+    except (TypeError, ValueError, sp.SympifyError) as e:
+        pass
+
+    submission = re.sub(r"\^","**",submission)
+    expr_a = str(expr_a)
+
+
+    if correction.parent.parent is None or correction.parent.parent == 0 or correction.parent.parent.value == '=':
+        new_str = "(" + submission + ")" + to_add
+        if trigger_check(new_str, answer, params, expr_a, next_step):
+            return True
+    
+    submission = re.sub(r"\s|","",submission)
+    submission = replace_sqrt(submission)
+    expr_a = re.sub(r"|\s","",str(expr_a))
+            
+    if correction.parent:
+        siblings = [ i for i in correction.parent.children if i != correction]
+    
+    print("siblings", siblings)
+    idx = 0
+    for i in range(len(siblings)):
+        if siblings[i].type in ["numeric","variable"]:
+            ## because 1/2 is noramlly not represented as 1/2 but e.g pi/2 if there's another var
+            if siblings[i].value == '1/2':
+                idx = i
+                continue
+            if siblings[i].value in submission:
+                idx = i
+                break
+    ## get sibling elements return the sibling operand. clean_sibling removes the |2 etc.
+    if siblings[idx].type in ["function","operator"]:
+        str_to_find = re.sub(r"\|\d+", "", recursive_extract_node(siblings[0],'')[1:-1])
+
+        ## to match a/b
+        match = re.search(r"(.+)\*\((.+)\*\*\(\-1\)\)",  str_to_find)
+        ## to match 1/b
+        match2 = re.search(r"(\(.+\))\*\*\(\-1\)",  str_to_find)
+        if match:
+            pattern_to_match = r"(" + match.group(1) + r")/(" + match.group(2) + r")"
+            pattern_to_match = re.sub(r'\(|\)|(?<=\*\*\()\-', '',pattern_to_match)            
+            pattern_to_match_escaped = re.escape(pattern_to_match)
+            # submission = re.sub(r'\(|\)', '', submission)
+            results = find_pos_regex(submission, pattern_to_match_escaped)
+            if results == []:
+                pattern_to_match = re.sub(r'\*', '',pattern_to_match)
+                pattern_to_match_escaped = re.escape(pattern_to_match)
+                # submission = re.sub(r'\(|\)', '', submission)
+                results = find_pos_regex(submission, pattern_to_match_escaped)
+        elif match2:
+            pattern_to_match = ''.join(sorted(match2.group(1)))
+            pattern_to_match = re.sub(r'\(|\)|(?<=\*\*\()\-', '',pattern_to_match)
+            pattern_to_match_escaped = re.escape(pattern_to_match)
+            results = find_pos_regex(submission, pattern_to_match_escaped)
+            if results == []:
+                pattern_to_match = re.sub(r'\*', '',pattern_to_match)
+                pattern_to_match_escaped = re.escape(pattern_to_match)
+                results = find_pos_regex(submission, pattern_to_match_escaped)
+        else:
+            if re.search(r'(\+|(?<!\*)\*(?!\*))', str_to_find):
+                items = re.split(r'(\+|(?<!\*)\*(?!\*))', str_to_find ) 
+                if len(items) >= 5:
+                    str_to_find_permutation = [str_to_find]
+                else:
+                    str_to_find_permutation = [''.join(itertools.chain.from_iterable(p)) for p in itertools.permutations(items)]
+                patterns_to_match = [re.sub(r'\+\-','-',re.sub(r'\(|\)|(?<=\*\*\()\-', r'',i)) for i in str_to_find_permutation]
+                patterns_to_match_escaped = [re.escape(i) for i in patterns_to_match]
+                results = []
+                counter = 0
+                for pattern in patterns_to_match_escaped:
+                    result = find_pos_regex(submission, pattern)
+                    results.extend(result)
+                    counter+= 1
+                    if counter > 20:
+                        break
+                if results == []:
+                    patterns_to_match = [re.sub(r'\+\-','-',re.sub(r'\(|\)|\*', r'',i)) for i in str_to_find_permutation]
+                    patterns_to_match_escaped = [re.escape(i) for i in patterns_to_match]
+                    counter = 0
+                    for pattern in patterns_to_match_escaped:
+                        result = find_pos_regex(submission, pattern)
+                        results.extend(result) 
+                        counter+= 1
+                        if counter > 20:
+                            break
+            else:
+                pattern_to_match = re.sub(r'\(|\)|(?<=\*\*\()\-', r'',str_to_find)
+                pattern_to_match_escaped = re.escape(pattern_to_match)
+                results = find_pos_regex(submission, pattern_to_match_escaped)
+                if results == []:
+                    pattern_to_match = re.sub(r'\*', '',pattern_to_match)
+                    pattern_to_match_escaped = re.escape(pattern_to_match)
+                    results = find_pos_regex(submission, pattern_to_match_escaped)
+        
+        possible_pos = [i[0] for i in results]
+        len_siblings = [i[1] for i in results]
+    else:
+        clean_sibling_element = re.sub(r"\|\d+", "", siblings[idx].value)
+        possible_pos = find_pos(submission, clean_sibling_element)
+        len_siblings = [len(clean_sibling_element) for i in possible_pos]
+    
+    
+    for idx in range(len(possible_pos)):
+        
+        new_str = submission[:possible_pos[idx]] + "((" + submission[possible_pos[idx]:]
+        new_str = new_str[:possible_pos[idx]+len_siblings[idx]+2] +')' + to_add + ')' + new_str[possible_pos[idx]+len_siblings[idx]+2:]
+        if trigger_check(new_str, answer, params, expr_a, next_step):
+            return True
+    
+    return False
+
+
+
+## tool to trigger the various function
+
+def trigger_check(submission, answer, params, expr_a, next_step):
+    if next_step[0] == 'U':
+        return test_update(submission, answer, params, expr_a, next_step[1], next_step[2])
+    elif next_step[0] == 'R':
+        return test_removal(submission, answer, params, expr_a, next_step[1])
+    elif next_step[0] == 'I':
+        return test_insert(submission, answer, params, expr_a, next_step[2])
+
+def comb_trigger_check(submission, answer, params, expr_a, first_step, next_step):
+    if first_step[0] == 'U':
+        return comb_test_update(submission, answer, params, expr_a, first_step[1], first_step[2], next_step)
+    elif first_step[0] == 'R':
+        return comb_test_removal(submission, answer, params, expr_a, first_step[1], next_step)
+    elif first_step[0] == 'I':
+        return comb_test_insert(submission, answer, params, expr_a, first_step[2], next_step)
+
 
 ## run 
 
@@ -638,29 +1538,30 @@ def run_all(commonMistakes):
         elif len(to_mod) == 1:
             if to_mod[0][0] == 'U' and to_mod[0][1].value == 'a' and to_mod[0][2].value == 'b':
                 i["recommendedFeedback"] =  "(1) Unable to be parsed!" 
-            elif to_mod[0][0] == 'U' and to_mod[0][4] == 1 and to_mod[0][1].type == to_mod[0][2].type and to_mod[0][1].type == 'numeric':
-                atol = params.get('atol',0)*2
-                rtol = max(params.get("rtol", 0.05)*2,0.1)
-                real_diff = None
-                response = float(sp.sympify(to_mod[0][1].value).evalf())
-                answer = float(sp.sympify(to_mod[0][2].value).evalf())
-                real_diff = abs(response - answer)
-                allowed_diff = atol + rtol * abs(answer)
-                allowed_diff += spacing(answer)
-                is_close = bool(real_diff <= allowed_diff)
-                is_factor = False
-                if response != 0 and answer != 0:
-                    ratio = response / answer
-                    log_ratio = np.log10(abs(ratio))
-                    is_factor = log_ratio.is_integer()
-                if is_close:
-                    i["recommendedFeedback"] =  "(1) The student's reponse is close, within twice the allowed tolerance range."
-                elif set(re.sub(r'\|(\d)+','',to_mod[0][1].value)) ^ set(re.sub(r'\|(\d)+','',to_mod[0][2].value)) == set('-'):
-                    i["recommendedFeedback"] =  "(1) The student's response differs by the term -."  
-                elif is_factor:
-                    i["recommendedFeedback"] =  f"(1) The student's response is a factor of {log_ratio} away from the answer."
-            else:
-                i["recommendedFeedback"] =  generate_mult_msg(to_mod)
+            elif trigger_check(raw_A, raw_B, params, expr_a, to_mod[0]):
+                if to_mod[0][0] == 'U' and to_mod[0][4] == 1 and to_mod[0][1].type == to_mod[0][2].type and to_mod[0][1].type == 'numeric':
+                    atol = params.get('atol',0)*2
+                    rtol = max(params.get("rtol", 0.05)*2,0.1)
+                    real_diff = None
+                    response = float(sp.sympify(to_mod[0][1].value).evalf())
+                    answer = float(sp.sympify(to_mod[0][2].value).evalf())
+                    real_diff = abs(response - answer)
+                    allowed_diff = atol + rtol * abs(answer)
+                    allowed_diff += spacing(answer)
+                    is_close = bool(real_diff <= allowed_diff)
+                    is_factor = False
+                    if response != 0 and answer != 0:
+                        ratio = response / answer
+                        log_ratio = np.log10(abs(ratio))
+                        is_factor = log_ratio.is_integer()
+                    if is_close:
+                        i["recommendedFeedback"] =  "(1) The student's reponse is close, within twice the allowed tolerance range."
+                    elif set(re.sub(r'\|(\d)+','',to_mod[0][1].value)) ^ set(re.sub(r'\|(\d)+','',to_mod[0][2].value)) == set('-'):
+                        i["recommendedFeedback"] =  "(1) The student's response differs by the term -."  
+                    elif is_factor:
+                        i["recommendedFeedback"] =  f"(1) The student's response is a factor of {log_ratio} away from the answer."
+                else:
+                    i["recommendedFeedback"] =  generate_mult_msg(to_mod)
             # if message_store != []:
             #     store_results(result_store, message_store, to_mod, A, B, raw_A, raw_B, counter)
         elif form_check_bool_raw:
