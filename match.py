@@ -654,6 +654,7 @@ def test_insert(submission, answer, params, expr_a, correction):
         if a == b:
             return True
     elif correction.parent.parent is None or correction.parent.parent == 0 or correction.parent.parent.value == '=':
+        to_add = re.sub(r"\|\d+", "",correction.parent.value) + (recursive_extract_node(correction,''))
         new_str = "(" + submission + ")" + to_add
         a, b = check_equality(new_str,answer,params,{})
         if a == b:
