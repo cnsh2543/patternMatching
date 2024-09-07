@@ -410,37 +410,88 @@ def recursive_extract_node(node, string):
             string = recursive_extract_node(node.children[0], string)
     return string
 
+def get_sibling(node):
+    if node.parent is not None and node.parent!=0:
+        siblings = [ i for i in node.parent.children if i != node]
+        ## get idx of sibling to be used for append
+        if len(siblings) >= 1:
+            idx = 0
+            for i in range(len(siblings)):
+                if siblings[i].type in ["numeric","variable"]:
+                    ## because 1/2 is noramlly not represented as 1/2 but e.g pi/2 if there's another var
+                    idx = i
+                    break
+                ## pattern matching to find the position in the string to append the new item
+            # if siblings[idx].type in ["function","operator"]:
+            #     sibling = re.sub(r"\|\d+", "", recursive_extract_node(siblings[idx],''))
+            # else:
+            sibling = re.sub(r"\|\d+", "", recursive_extract_node(siblings[idx],''))
+        else:
+            sibling = ''
+    else:
+        sibling = ''
+    return sibling
 
 def generate_message(ops):
     if ops[0] == 'I':
+        sibling = get_sibling(ops[2])
+        hasParent = False
+        isNotBase = True
+        if ops[2].parent is not None and ops[2].parent!=0:
+            hasParent = True
+            if re.sub(r'\|.*','',ops[2].parent.value) == "**":
+                if ops[2].parent.children[0] == ops[2]:
+                    isNotBase = False
         if ops[2].type in ['numeric','variable']:
-            return f"The student's response is missing term {re.sub(r'\|.*','',ops[2].parent.value) if ops[2].parent is not None and ops[2].parent!=0 and ops[2].parent.type != 'function' else ''}({re.sub(r'\|.*','',ops[2].value)})."
+            return f"The student's response is missing term {re.sub(r'\|.*','',ops[2].parent.value) if hasParent and ops[2].parent.type != 'function' and isNotBase else ''}({re.sub(r'\|.*','',ops[2].value)}){" applied to the term " + sibling if sibling !='' and hasParent and isNotBase else ''}."
         elif ops[2].type == 'function':
-            return f"The student's response is missing term {recursive_extract_node(ops[2],'')}. "
+            return f"The student's response is missing term {recursive_extract_node(ops[2],'')}{" applied to the term " + sibling if sibling !='' else ''}."
         else:
-            return f"The student's response is missing term {re.sub(r'\|.*','',ops[2].parent.value) if ops[2].parent is not None and ops[2].parent!=0 and ops[2].parent.type != 'function'  else ''}{recursive_extract_node(ops[2],'')}. "
+            return f"The student's response is missing term {re.sub(r'\|.*','',ops[2].parent.value) if hasParent and ops[2].parent.type != 'function' and isNotBase else ''}{recursive_extract_node(ops[2],'')}{" applied to the term " + sibling if sibling !='' and hasParent and isNotBase else ''}."
     elif ops[0] == 'R':
-         if ops[1].type in ['numeric','variable']:
-            return f"The student's response has excess term {re.sub(r'\|.*','',ops[1].parent.value) if ops[1].parent is not None and ops[1].parent!=0 and ops[1].parent.type != 'function'  else ''}({re.sub(r'\|.*','',ops[1].value)}). "
-         elif ops[1].type == 'function':
-            return f"The student's response is missing term {recursive_extract_node(ops[1],'')}. "
-         else:
-            return f"The student's response has excess term {re.sub(r'\|.*','',ops[1].parent.value) if ops[1].parent is not None and ops[1].parent!=0 and ops[1].parent.type != 'function'  else ''}{recursive_extract_node(ops[1],'')}. "
+        hasParent = False
+        isNotBase = True
+        if ops[1].parent is not None and ops[1].parent!=0:
+            hasParent = True
+            if re.sub(r'\|.*','',ops[1].parent.value) == "**":
+                if ops[1].parent.children[0] == ops[1]:
+                    isNotBase = False
+        sibling = get_sibling(ops[1])
+        if ops[1].type in ['numeric','variable']:
+            return f"The student's response has excess term {re.sub(r'\|.*','',ops[1].parent.value) if hasParent and ops[1].parent.type != 'function' and isNotBase else ''}({re.sub(r'\|.*','',ops[1].value)}){" applied to the term " + sibling if sibling !='' and hasParent and isNotBase else ''}."
+        elif ops[1].type == 'function':
+            return f"The student's response is missing term {recursive_extract_node(ops[1],'')}{" applied to the term " + sibling if sibling !='' else ''}."
+        else:
+            return f"The student's response has excess term {re.sub(r'\|.*','',ops[1].parent.value) if hasParent and ops[1].parent.type != 'function' and isNotBase else ''}{recursive_extract_node(ops[1],'')}{" applied to the term " + sibling if sibling !='' and hasParent and isNotBase else ''}."
     else:
+        hasParent = False
+        isNotBase = True
+        if ops[2].parent is not None and ops[2].parent!=0:
+            hasParent = True
+            if re.sub(r'\|.*','',ops[2].parent.value) == "**":
+                if ops[2].parent.children[0] == ops[2]:
+                    isNotBase = False
+        hasParent_1 = False
+        isNotBase_1 = True
+        if ops[1].parent is not None and ops[1].parent!=0:
+            hasParent_1 = True
+            if re.sub(r'\|.*','',ops[1].parent.value) == "**":
+                if ops[1].parent.children[0] == ops[1]:
+                    isNotBase_1 = False
+        sibling = get_sibling(ops[2])
         if ops[2].type in ['numeric','variable']:
-            ins_term_str =  f'{re.sub(r'\|.*','',ops[2].parent.value) if ops[2].parent is not None and ops[2].parent!=0 and ops[2].parent.type != 'function'  else ''}({re.sub(r'\|.*','',ops[2].value)})'
+            ins_term_str =  f'{re.sub(r'\|.*','',ops[2].parent.value) if hasParent and ops[2].parent.type != 'function' and isNotBase else ''}({re.sub(r'\|.*','',ops[2].value)})'
         elif ops[2].type == 'function':
             ins_term_str = f'{recursive_extract_node(ops[2],'')}'
         else:
-            ins_term_str = f'{re.sub(r'\|.*','',ops[2].parent.value) if ops[2].parent is not None and ops[2].parent!=0 and ops[2].parent.type != 'function'  else ''}{recursive_extract_node(ops[2],'')}'
+            ins_term_str = f'{re.sub(r'\|.*','',ops[2].parent.value) if hasParent and ops[2].parent.type != 'function' and isNotBase else ''}{recursive_extract_node(ops[2],'')}'
         if ops[1].type in ['numeric','variable']:
-            rem_term_str = f'{re.sub(r'\|.*','',ops[1].parent.value) if ops[1].parent is not None and ops[1].parent!=0 and ops[1].parent.type != 'function'  else ''}({re.sub(r'\|.*','',ops[1].value)})'
+            rem_term_str = f'{re.sub(r'\|.*','',ops[1].parent.value) if hasParent_1 and ops[1].parent.type != 'function' and isNotBase_1 else ''}({re.sub(r'\|.*','',ops[1].value)})'
         elif ops[1].type == 'function':
             rem_term_str = f'{recursive_extract_node(ops[1],'')}'
         else:
-            rem_term_str = f'{re.sub(r'\|.*','',ops[1].parent.value) if ops[1].parent is not None and ops[1].parent!=0 and ops[1].parent.type != 'function'  else ''}{recursive_extract_node(ops[1],'')}'
-        
-        return f"The student's response has the term {rem_term_str} instead of the term {ins_term_str}. "
+            rem_term_str = f'{re.sub(r'\|.*','',ops[1].parent.value) if hasParent_1 and ops[1].parent.type != 'function' and isNotBase_1 else ''}{recursive_extract_node(ops[1],'')}'
+        return f"The student's response has the term {rem_term_str} instead of the term {ins_term_str}{" applied to the term " + sibling if sibling !='' and hasParent and isNotBase else ''}."
 
 def generate_mult_msg(to_mod):
     if len(set([generate_message(to_mod[i]) for i in range(len(to_mod))])) < len([generate_message(to_mod[i]) for i in range(len(to_mod))]):
@@ -1533,9 +1584,10 @@ def run_all(commonMistakes):
         form_check_bool_raw, form_check_msg_raw = raw_form_check(str(raw_A), str(raw_B))
         
         # # catch the brackets first.
-        if form_check_msg_raw in ["The student's response has excess ), (", "The student's response has missing ), ("]:
-            i["recommendedFeedback"] =  "(1) " + form_check_msg_raw
-            # store_results(result_store, message_store, to_mod, A, B, raw_A, raw_B, counter)
+        if form_check_msg_raw in ["The student's response has excess term ), (", "The student's response has excess term (, )"]:
+            i["recommendedFeedback"] = "(1) The student's response has excess parenthesis."
+        elif form_check_msg_raw in ["The student's response has missing term ), (", "The student's response has missing term (, )"]:
+            i["recommendedFeedback"] = "(1) The student's response is missing parenthesis."
         elif len(to_mod) == 1:
             if to_mod[0][0] == 'U' and to_mod[0][1].value == 'a' and to_mod[0][2].value == 'b':
                 i["recommendedFeedback"] =  "(1) Unable to be parsed!" 
@@ -1560,15 +1612,17 @@ def run_all(commonMistakes):
                     elif set(re.sub(r'\|(\d)+','',to_mod[0][1].value)) ^ set(re.sub(r'\|(\d)+','',to_mod[0][2].value)) == set('-'):
                         i["recommendedFeedback"] =  "(1) The student's response differs by the term -."  
                     elif is_factor:
-                        i["recommendedFeedback"] =  f"(1) The student's response is a factor of {log_ratio} away from the answer."
+                        i["recommendedFeedback"] = f"(1) The student's response is a factor of 10**{-log_ratio} away from the answer."
+
                 else:
-                    i["recommendedFeedback"] =  generate_mult_msg(to_mod)
+                    if to_mod[0][4] > 1:
+                        i["recommendedFeedback"] =  generate_mult_msg(to_mod)
             # if message_store != []:
             #     store_results(result_store, message_store, to_mod, A, B, raw_A, raw_B, counter)
-        elif form_check_bool_raw:
-            i["recommendedFeedback"] =  "(1) " + form_check_msg_raw
+        # elif form_check_bool_raw:
+        #     i["recommendedFeedback"] =  "(1) " + form_check_msg_raw
              # store_results(result_store, message_store, to_mod, A, B, raw_A, raw_B, counter)
-        elif len(to_mod) <= 2:
+        elif len(to_mod) == 2 and comb_trigger_check(raw_A, raw_B, params, expr_a, to_mod[0], to_mod[1]):
             i["recommendedFeedback"] =  generate_mult_msg(to_mod)
             # store_results(result_store, message_store, to_mod, A, B, raw_A, raw_B, counter)
     
