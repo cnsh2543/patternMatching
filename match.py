@@ -380,11 +380,13 @@ def print_results(row, message, to_mod, treeA, treeB):
     for i in to_mod:
         print(i)
 
-def store_results(storage, message, to_mod, treeA, treeB, raw_A, raw_B, row):
+def store_results(storage, message, to_mod, treeA, treeB, expr_a, expr_b, raw_A, raw_B,  row):
     storage.append({"message": message, 
                 "row" : row,
                 'raw_A': raw_A,
                 'raw_B': raw_B,
+                'expr_A' : expr_a,
+                'expr_B' : expr_b,
                 "to_mod": to_mod,
                 "treeA": treeA,
                 "treeB": treeB})
@@ -431,6 +433,7 @@ def get_sibling(node):
     else:
         sibling = ''
     return sibling
+        
 
 def generate_message(ops):
     if ops[0] == 'I':
@@ -493,6 +496,37 @@ def generate_message(ops):
             rem_term_str = f'{re.sub(r'\|.*','',ops[1].parent.value) if hasParent_1 and ops[1].parent.type != 'function' and isNotBase_1 else ''}{recursive_extract_node(ops[1],'')}'
         return f"The student's response has the term {rem_term_str} instead of the term {ins_term_str}{" applied to the term " + sibling if sibling !='' and hasParent and isNotBase else ''}."
 
+
+def generate_category(ops):
+    if ops[0] == 'I':
+        if ops[2].type in ['numeric']:
+            return f"The student's response is missing a single numeric term."
+        elif ops[2].type in ['variable']:
+            return f"The student's response is missing a single variable term."
+        elif ops[2].type == 'function':
+            return f"The student's response is missing a single function term."
+        else:
+            return f"The student's response is missing terms."
+    elif ops[0] == 'R':
+        if ops[1].type in ['numeric']:
+            return f"The student's response has one excess numeric term."
+        elif ops[1].type in ['variable']:
+            return f"The student's response has one excess variable term."
+        elif ops[1].type == 'function':
+            return f"The student's response is missing a single function term." 
+        else:
+            return f"The student's response has excess terms."
+    else:
+        if set(re.sub(r'\|(\d)+','',ops[1].value)) ^ set(re.sub(r'\|(\d)+','',ops[2].value)) == set('-'):
+            if '-' in re.sub(r'\|(\d)+','',ops[2].value):
+                return f"The student's response is missing the term -."
+            else:
+                return f"The student's response has excess term -."
+        elif ops[2].type == ops[1].type:
+            return f"The student's response has one wrong {ops[1].type} term."
+        else:
+            return f"The student's response has one {ops[2].type} term instead of one {ops[1].type} term."
+
 def generate_mult_msg(to_mod):
     if len(set([generate_message(to_mod[i]) for i in range(len(to_mod))])) < len([generate_message(to_mod[i]) for i in range(len(to_mod))]):
         uniq_msg = list(set([generate_message(to_mod[i]) for i in range(len(to_mod))]))
@@ -501,7 +535,20 @@ def generate_mult_msg(to_mod):
     msg = ''
        
     for i in range(len(uniq_msg)):
-        msg += f'({i+1}) {uniq_msg[i]} '
+        msg += f'({i+1}) {uniq_msg[i]}'
+
+    
+    return msg
+
+def generate_mult_category(to_mod):
+    if len(set([generate_category(to_mod[i]) for i in range(len(to_mod))])) < len([generate_category(to_mod[i]) for i in range(len(to_mod))]):
+        uniq_msg = list(set([generate_category(to_mod[i]) for i in range(len(to_mod))]))
+    else:
+        uniq_msg = [generate_category(to_mod[i]) for i in range(len(to_mod))]
+    msg = ''
+       
+    for i in range(len(uniq_msg)):
+        msg += f'({i+1}) {uniq_msg[i]}'
 
     
     return msg
