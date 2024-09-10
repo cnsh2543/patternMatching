@@ -446,11 +446,11 @@ def generate_message(ops):
                 if ops[2].parent.children[0] == ops[2]:
                     isNotBase = False
         if ops[2].type in ['numeric','variable']:
-            return f"The student's response is missing term {re.sub(r'\|.*','',ops[2].parent.value) if hasParent and ops[2].parent.type != 'function' and isNotBase else ''}({re.sub(r'\|.*','',ops[2].value)}){" applied to the term " + sibling if sibling !='' and hasParent and isNotBase else ''}."
+            return f"The student's response is missing term { '\\' + re.sub(r'\|.*','',ops[2].parent.value) if hasParent and ops[2].parent.type != 'function' and isNotBase else ''}({re.sub(r'\|.*','',ops[2].value)}){" applied to the term " + sibling if sibling !='' and hasParent and isNotBase else ''}."
         elif ops[2].type == 'function':
             return f"The student's response is missing term {recursive_extract_node(ops[2],'')}{" applied to the term " + sibling if sibling !='' else ''}."
         else:
-            return f"The student's response is missing term {re.sub(r'\|.*','',ops[2].parent.value) if hasParent and ops[2].parent.type != 'function' and isNotBase else ''}{recursive_extract_node(ops[2],'')}{" applied to the term " + sibling if sibling !='' and hasParent and isNotBase else ''}."
+            return f"The student's response is missing term { '\\' + re.sub(r'\|.*','',ops[2].parent.value) if hasParent and ops[2].parent.type != 'function' and isNotBase else ''}{recursive_extract_node(ops[2],'')}{" applied to the term " + sibling if sibling !='' and hasParent and isNotBase else ''}."
     elif ops[0] == 'R':
         hasParent = False
         isNotBase = True
@@ -461,11 +461,11 @@ def generate_message(ops):
                     isNotBase = False
         sibling = get_sibling(ops[1])
         if ops[1].type in ['numeric','variable']:
-            return f"The student's response has excess term {re.sub(r'\|.*','',ops[1].parent.value) if hasParent and ops[1].parent.type != 'function' and isNotBase else ''}({re.sub(r'\|.*','',ops[1].value)}){" applied to the term " + sibling if sibling !='' and hasParent and isNotBase else ''}."
+            return f"The student's response has excess term { '\\' + re.sub(r'\|.*','',ops[1].parent.value) if hasParent and ops[1].parent.type != 'function' and isNotBase else ''}({re.sub(r'\|.*','',ops[1].value)}){" applied to the term " + sibling if sibling !='' and hasParent and isNotBase else ''}."
         elif ops[1].type == 'function':
             return f"The student's response is missing term {recursive_extract_node(ops[1],'')}{" applied to the term " + sibling if sibling !='' else ''}."
         else:
-            return f"The student's response has excess term {re.sub(r'\|.*','',ops[1].parent.value) if hasParent and ops[1].parent.type != 'function' and isNotBase else ''}{recursive_extract_node(ops[1],'')}{" applied to the term " + sibling if sibling !='' and hasParent and isNotBase else ''}."
+            return f"The student's response has excess term {'\\' + re.sub(r'\|.*','',ops[1].parent.value) if hasParent and ops[1].parent.type != 'function' and isNotBase else ''}{recursive_extract_node(ops[1],'')}{" applied to the term " + sibling if sibling !='' and hasParent and isNotBase else ''}."
     else:
         hasParent = False
         isNotBase = True
@@ -483,17 +483,17 @@ def generate_message(ops):
                     isNotBase_1 = False
         sibling = get_sibling(ops[2])
         if ops[2].type in ['numeric','variable']:
-            ins_term_str =  f'{re.sub(r'\|.*','',ops[2].parent.value) if hasParent and ops[2].parent.type != 'function' and isNotBase else ''}({re.sub(r'\|.*','',ops[2].value)})'
+            ins_term_str =  f'{'\\' + re.sub(r'\|.*','',ops[2].parent.value) if hasParent and ops[2].parent.type != 'function' and isNotBase else ''}({re.sub(r'\|.*','',ops[2].value)})'
         elif ops[2].type == 'function':
             ins_term_str = f'{recursive_extract_node(ops[2],'')}'
         else:
-            ins_term_str = f'{re.sub(r'\|.*','',ops[2].parent.value) if hasParent and ops[2].parent.type != 'function' and isNotBase else ''}{recursive_extract_node(ops[2],'')}'
+            ins_term_str = f'{'\\' + re.sub(r'\|.*','',ops[2].parent.value) if hasParent and ops[2].parent.type != 'function' and isNotBase else ''}{recursive_extract_node(ops[2],'')}'
         if ops[1].type in ['numeric','variable']:
-            rem_term_str = f'{re.sub(r'\|.*','',ops[1].parent.value) if hasParent_1 and ops[1].parent.type != 'function' and isNotBase_1 else ''}({re.sub(r'\|.*','',ops[1].value)})'
+            rem_term_str = f'{'\\' + re.sub(r'\|.*','',ops[1].parent.value) if hasParent_1 and ops[1].parent.type != 'function' and isNotBase_1 else ''}({re.sub(r'\|.*','',ops[1].value)})'
         elif ops[1].type == 'function':
             rem_term_str = f'{recursive_extract_node(ops[1],'')}'
         else:
-            rem_term_str = f'{re.sub(r'\|.*','',ops[1].parent.value) if hasParent_1 and ops[1].parent.type != 'function' and isNotBase_1 else ''}{recursive_extract_node(ops[1],'')}'
+            rem_term_str = f'{'\\' + re.sub(r'\|.*','',ops[1].parent.value) if hasParent_1 and ops[1].parent.type != 'function' and isNotBase_1 else ''}{recursive_extract_node(ops[1],'')}'
         return f"The student's response has the term {rem_term_str} instead of the term {ins_term_str}{" applied to the term " + sibling if sibling !='' and hasParent and isNotBase else ''}."
 
 
