@@ -434,6 +434,11 @@ def get_sibling(node):
         sibling = ''
     return sibling
         
+def escape_selected_characters(text, chars_to_escape):
+    # Escape each character in chars_to_escape by replacing it with its escaped version
+    for char in chars_to_escape:
+        text = text.replace(char, "\\" + char)
+    return text
 
 def generate_message(ops):
     if ops[0] == 'I':
@@ -447,13 +452,13 @@ def generate_message(ops):
                     isNotBase = False
         if ops[2].type in ['numeric','variable']:
             temp = f"The student's response is missing term { re.sub(r'\|.*','',ops[2].parent.value) if hasParent and ops[2].parent.type != 'function' and isNotBase else ''}({re.sub(r'\|.*','',ops[2].value)}){" applied to the term " + sibling if sibling !='' and hasParent and isNotBase else ''}."
-            return re.escape(temp)  
+            return escape_selected_characters(temp,"*+.")   
         elif ops[2].type == 'function':
             temp = f"The student's response is missing term {recursive_extract_node(ops[2],'')}{" applied to the term " + sibling if sibling !='' else ''}."
-            return re.escape(temp)      
+            return escape_selected_characters(temp,"*+.")    
         else:
             temp = f"The student's response is missing term { re.sub(r'\|.*','',ops[2].parent.value) if hasParent and ops[2].parent.type != 'function' and isNotBase else ''}{recursive_extract_node(ops[2],'')}{" applied to the term " + sibling if sibling !='' and hasParent and isNotBase else ''}."
-            return re.escape(temp)    
+            return escape_selected_characters(temp,"*+.")      
     elif ops[0] == 'R':
         hasParent = False
         isNotBase = True
@@ -465,13 +470,13 @@ def generate_message(ops):
         sibling = get_sibling(ops[1])
         if ops[1].type in ['numeric','variable']:
             temp = f"The student's response has excess term { re.sub(r'\|.*','',ops[1].parent.value) if hasParent and ops[1].parent.type != 'function' and isNotBase else ''}({re.sub(r'\|.*','',ops[1].value)}){" applied to the term " + sibling if sibling !='' and hasParent and isNotBase else ''}."
-            return re.escape(temp)         
+            return escape_selected_characters(temp,"*+.")         
         elif ops[1].type == 'function':
             temp = f"The student's response is missing term {recursive_extract_node(ops[1],'')}{" applied to the term " + sibling if sibling !='' else ''}."
-            return re.escape(temp) 
+            return escape_selected_characters(temp,"*+.")   
         else:
             temp = f"The student's response has excess term {re.sub(r'\|.*','',ops[1].parent.value) if hasParent and ops[1].parent.type != 'function' and isNotBase else ''}{recursive_extract_node(ops[1],'')}{" applied to the term " + sibling if sibling !='' and hasParent and isNotBase else ''}."
-            return re.escape(temp)
+            return escape_selected_characters(temp,"*+.")   
     else:
         hasParent = False
         isNotBase = True
@@ -501,7 +506,7 @@ def generate_message(ops):
         else:
             rem_term_str = f'{re.sub(r'\|.*','',ops[1].parent.value) if hasParent_1 and ops[1].parent.type != 'function' and isNotBase_1 else ''}{recursive_extract_node(ops[1],'')}'
         temp = f"The student's response has the term {rem_term_str} instead of the term {ins_term_str}{" applied to the term " + sibling if sibling !='' and hasParent and isNotBase else ''}."
-        return re.escape(temp)
+        return escape_selected_characters(temp,"*+.")   
 
 def generate_category(ops):
     if ops[0] == 'I':
