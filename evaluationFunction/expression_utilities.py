@@ -181,7 +181,7 @@ def SLR_implicit_multiplication_convention_parser(convention):
     ]
 
     costum_tokens = [
-        (" *(\*|\+|-| ) *", "SPLIT"), (" */ *", "SOLIDUS")
+        (r" *(\*|\+|-| ) *", "SPLIT"), (" */ *", "SOLIDUS")
     ]
 
     infix_operators = []
